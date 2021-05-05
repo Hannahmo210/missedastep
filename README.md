@@ -13,71 +13,67 @@ missedastep <- read_csv("/Users/hannahmoyer/Desktop/exporteddata.csv")
 
 #stringent analysis 
 
-pfsmissedastep <- subset(missedastep, IstherePFSdata == "1" )
+pfsmissedastep <- subset(missedastep, IstherePFSdata == "yes" )
 
 pfs_ma_mas <- metagen(
   log(hazard_ratio),
   PFSSE,
-  `P3`,
   data = pfsmissedastep,
   sm = "HR",
   byvar = stringentpos,
   comb.fixed = FALSE,
   method.tau = "PM", 
-  adhoc.hakn = "se",
+  adhoc.hakn = "ci",
 )
 
 summary(pfs_ma_mas)
 
-saemissedastep <- subset(missedastep, IsthereSAEdata == "1" )
+saemissedastep <- subset(missedastep, IsthereSAEdata == "yes" )
 
-saemissedastep$studylabel <- saemissedastep$P3
+
 sae_ma_mas <- metabin(
   Esae,
   EN,
   Csae,
   CN,
-  studlab = studylabel,
   data = saemissedastep, 
   byvar = stringentpos,
   comb.fixed = FALSE,
   method.tau = "PM", 
-  adhoc.hakn = "se",
+  adhoc.hakn = "ci",
 )
 summary(sae_ma_mas)
 
 #permissive analysis 
 
-pfsmissedastep <- subset(missedastep, IstherePFSdata == "1" )
+pfsmissedastep <- subset(missedastep, IstherePFSdata == "yes" )
 
 pfs_ma_masp <- metagen(
   log(hazard_ratio),
   PFSSE,
-  `P3`,
   data = pfsmissedastep,
   sm = "HR",
   byvar = permandstringent,
   comb.fixed = FALSE,
   method.tau = "PM", 
-  adhoc.hakn = "se",
+  adhoc.hakn = "ci",
 )
 
 summary(pfs_ma_masp)
 
-saemissedastep <- subset(missedastep, IsthereSAEdata == "1" )
+saemissedastep <- subset(missedastep, IsthereSAEdata == "yes" )
 
-saemissedastep$studylabel <- saemissedastep$P3
+
 sae_ma_masp <- metabin(
   Esae,
   EN,
   Csae,
   CN,
-  studlab = studylabel,
   data = saemissedastep, 
   byvar = permandstringent,
   comb.fixed = FALSE,
   method.tau = "PM", 
-  adhoc.hakn = "se",
+  adhoc.hakn = "ci",
 )
 summary(sae_ma_masp)
 
