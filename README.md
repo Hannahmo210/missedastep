@@ -165,7 +165,20 @@ dev.off()
 
 #secondaries 
 
-#NEAR???
-
 #logistic regression 
+
+#binarized
+missedastep$approval<-factor(missedastep$approval)
+missedastep$Industy_binary<-factor(missedastep$Industy_binary)
+missedastep$biomarker<-factor(missedastep$biomarker)
+missedastep$drugclass<-factor(missedastep$drugclass)
+
+mylogitbinary<-glm(stringentpos~biomarker+approval+Industy_binary+drugclass,data= missedastep,family="binomial")
+summary(mylogitbinary)
+#numberical
+mylogitnumerical<-glm(stringentpos~Esae+survivalyr,data= missedastep,family="binomial")
+summary(mylogitnumerical)
+#lasagna
+
+
 
