@@ -1,5 +1,6 @@
 #missedastep
-
+install.packages("RColorBrewer")
+install.packages("reshape2")
 #secondaries
 
 
@@ -8,7 +9,8 @@ library(ggplot2)
 library(meta)
 library(forestplot)
 library(stringr)
-
+library(RColorBrewer)
+library(reshape2)
 missedastep <- read_csv("/Users/hannahmoyer/Desktop/exporteddata.csv")
 
 #stringent analysis 
@@ -176,6 +178,35 @@ mylogitbinary<-glm(stringentpos~biomarker+approval+Industy_binary+drugclass,data
 summary(mylogitbinary)
 
 #lasagna
+create variable graph
+Permissivereasons <- read.csv("/Users/hannahmoyer/Desktop/Permissivereasons.csv")
+
+display.brewer.pal(n = 8, name = 'Set1')
+palette <- brewer.pal(4, "Set1")[-4]
 
 
+H.mat <- matrix(NA, nrow=5, ncol=6)
+
+subgroup=c(Permissivereasons$Subgroup_analysis)
+badanalysis=c(Permissivereasons$Proper_subgroup_analysis)
+intervention=c(Permissivereasons$Exact_match_on_drugs)
+dosing=c(Permissivereasons$Dosing_match)
+schedule=c(Permissivereasons$Schedule_match)
+
+NCT=c(Permissivereasons$Phase_3_in_sample)
+
+H.mat[1, 1:6] = subgroup
+H.mat[2, 1:6] = badanalysis
+H.mat[3, 1:6] = intervention
+H.mat[4, 1:6] = dosing 
+H.mat[5, 1:6] = schedule
+
+rownames(H.mat)<-c('subgroup','badanalysis','intervention','dosing','schedule')
+colnames(H.mat)<- NCT
+names(dimnames(H.mat))<-c('Permissivereason','Trial')
+
+H.df<-melt(H.mat)
+
+ggplot(H.df,aes(x=Trial,y=Permissivereason,fill=factor(value))) + 
+  geom_tile(colour='black') 
 
