@@ -1,0 +1,69 @@
+#NEAR and regression
+library(readr)
+library(ggplot2)
+library(meta)
+library(forestplot)
+library(stringr)
+
+missedastep <- read_csv("/Users/hannahmoyer/Desktop/finaldatap23.csv")
+
+NEAR <- subset(missedastep, (isthereORRsamedenom == "1" & istherewithdrawl =="1" ))
+#Question for Merlin: many times they give us ORR in patients with observable tumor at baseline so smaller denom
+#option one is to use same denominator as withdrawls and undersell the effect be because lots of patients could not have response 
+#option two dont include those that used different denominators 
+#to test code I did number 2 
+for(i in 1:nrow(NEAR)) {
+  NEAR$etotalresponders[i]<-NEAR$of_patients_with_objective_response_in_experimental_arm[i]
+  NEAR$etotalnonresponders[i]<-(NEAR$e_n[i]-NEAR$of_patients_with_objective_response_in_experimental_arm[i])
+  NEAR$etotalwithoutwithdrawl[i]<-(NEAR$experimental_arm_withdrawal[i])
+  NEAR$etotalsufferwithdrawl[i]<-(NEAR$e_n[i]-NEAR$experimental_arm_withdrawal[i])
+  NEAR$ctotalresponders[i]<-NEAR$of_patients_with_objective_response_in_control_arm[i]
+  NEAR$ctotalnonresponders[i]<-(NEAR$c_n[i]-NEAR$of_patients_with_objective_response_in_control_arm[i])
+  NEAR$ctotalwithoutwithdrawl[i]<-(NEAR$control_arm_withdrawl[i])
+  NEAR$ctotalsufferwithdrawl[i]<-(NEAR$c_n[i]-NEAR$control_arm_withdrawl[i])
+  NEAR$ea[i]<-((NEAR$etotalresponders[i]*NEAR$etotalwithoutwithdrawl[i])/NEAR$e_n[i])
+  NEAR$eb[i]<-((NEAR$etotalnonresponders[i]*NEAR$etotalwithoutwithdrawl[i])/NEAR$e_n[i])
+  NEAR$ec[i]<-((NEAR$etotalresponders[i]*NEAR$etotalsufferwithdrawl[i])/NEAR$e_n[i])
+  NEAR$ed[i]<-((NEAR$etotalnonresponders[i]*NEAR$etotalsufferwithdrawl[i])/NEAR$e_n[i])
+  NEAR$ca[i]<-((NEAR$ctotalresponders[i]*NEAR$ctotalwithoutwithdrawl[i])/NEAR$c_n[i])
+  NEAR$cb[i]<-((NEAR$ctotalnonresponders[i]*NEAR$ctotalwithoutwithdrawl[i])/NEAR$c_n[i])
+  NEAR$cc[i]<-((NEAR$ctotalresponders[i]*NEAR$ctotalsufferwithdrawl[i])/NEAR$c_n[i])
+  NEAR$cd[i]<-((NEAR$ctotalnonresponders[i]*NEAR$ctotalsufferwithdrawl[i])/NEAR$c_n[i])
+  NEAR$Se[i]<-NEAR$eb[i]+NEAR$ec[i]+NEAR$ed[i]
+  NEAR$Sc[i]<-NEAR$cb[i]+NEAR$cc[i]+NEAR$cd[i]
+#do we want RR or OR NEAR?
+  NEAR$ORNEAR[i]<-(NEAR$ea[i]*NEAR$Se[i])/(NEAR$ca[i]*NEAR$Sc[i])
+  NEAR$RRNEAR[i]<-(NEAR$ea[i]/NEAR$e_n[i])/(NEAR$ca[i]/NEAR$c_n[i])
+  NEAR$NEARORupper[i]<-NEAR$RRNEAR[i]*exp(1.96*sqrt((1/NEAR$ea[i])+(1/NEAR$ca[i])+(1/NEAR$Se[i])+(1/NEAR$Sc[i])))
+  NEAR$NEARORlower[i]<-NEAR$RRNEAR[i]*exp(-1.96*sqrt((1/NEAR$ea[i])+(1/NEAR$ca[i])+(1/NEAR$Se[i])+(1/NEAR$Sc[i])))
+  NEAR$NEARRRupper[i]<-NEAR$RRNEAR[i]*exp(1.96*sqrt((1/NEAR$ea[i])-(1/NEAR$e_n[i])+(1/NEAR$ca[i])-(1/NEAR$c_n[i])))
+  NEAR$NEARRRlower[i]<-NEAR$RRNEAR[i]*exp(-1.96*sqrt((1/NEAR$ea[i])-(1/NEAR$e_n[i])+(1/NEAR$ca[i])-(1/NEAR$c_n[i])))
+  #assume the variance is 95%?
+  NEAR$NEARRRSE[i]<-(log(NEAR$NEARRRupper[i])-log(NEAR$NEARRRlower[i]))/3.92
+  NEAR$NEARORSE[i]<-(log(NEAR$NEARORupper[i])-log(NEAR$NEARORlower[i]))/3.92
+}
+#calculate SE 
+NEAR_ma_mas <- metagen(
+  ORNEAR,
+  NEAR$NEARORSE,
+  data = NEAR,
+  sm = "HR",
+  byvar = stringentpos,
+  comb.fixed = FALSE,
+  method.tau = "PM", 
+  adhoc.hakn = "se",
+)
+#need to switch tau method--says its too low?
+summary(NEAR_ma_mas)
+
+#regression
+#https://www.datacamp.com/community/tutorials/logistic-regression-R
+#https://sphweb.bumc.bu.edu/otlt/MPH-Modules/BS/R/R7_LogisticRegression-Survival/R7_LogisticRegression-Survival_print.html
+glm(formula = stringentpos ~ positivity , family = binomial, data = missedastep)
+# adding these variablesto overall sheet Biomarkerenrichment + Drugclass + Approvalstatus + BigPharma + Fiveyearsurvival + Saes in exp arm
+# 1-pchisq(134.4-131.9,122-119)
+
+#lasagnaVolume
+  #dont think we should do--because we could choose where it fell short-so mostly improper
+
+
