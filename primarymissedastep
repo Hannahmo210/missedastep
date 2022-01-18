@@ -1,0 +1,243 @@
+library(readr)
+library(ggplot2)
+library(meta)
+library(forestplot)
+library(stringr)
+
+missedastep <- read_csv("/Users/hannahmoyer/Desktop/finaldatap23.csv")
+
+
+#stringent analysis 
+
+pfsmissedastep <- subset(missedastep, istherePFS == "1" )
+
+#SE
+for(i in 1:nrow(pfsmissedastep)) {
+  if (pfsmissedastep$variance_type[i]=="95"){
+    pfsmissedastep$PFSSE[i]<-(log(pfsmissedastep$ci_upper_bound[i])-log(pfsmissedastep$ci_lower_bound[i]))/3.92
+  }else {
+    #please check if this is the right formula--getting something different than in excel-did I use qnorm correctly
+    #https://handbook-5-1.cochrane.org/chapter_7/7_7_7_2_obtaining_standard_errors_from_confidence_intervals_and.htm
+    pfsmissedastep$PFSSE[i]<-abs((log(pfsmissedastep$PFShazard_ratio[i])/(qnorm(pfsmissedastep$p_value[i]))))
+  }
+}
+#modify the three trials that had multiple arms 
+#https://abstracts.cochrane.org/2015-vienna/multiple-arm-trial-data-using-corrected-standard-error-giv-analyses
+for(i in 1:nrow(pfsmissedastep)) {
+  if (pfsmissedastep$extracted[i]=="NCT02788279"){
+    pfsmissedastep$PFSSE[i]<-(pfsmissedastep$PFSSE[i]*1.225)
+  }
+  if (pfsmissedastep$extracted[i]=="NCT02369874"){
+    pfsmissedastep$PFSSE[i]<-(pfsmissedastep$PFSSE[i]*1.225)
+  }
+  if (pfsmissedastep$extracted[i]=="NCT02580058"){
+    pfsmissedastep$PFSSE[i]<-(pfsmissedastep$PFSSE[i]*1.225)
+  }
+}
+
+pfs_ma_mas <- metagen(
+  lnHR,
+  pfsmissedastep$PFSSE2,
+  data = pfsmissedastep,
+  sm = "HR",
+  byvar = stringentpos,
+  comb.fixed = FALSE,
+  method.tau = "PM", 
+  adhoc.hakn = "se",
+)
+summary(pfs_ma_mas)
+
+saemissedastep <- subset(missedastep, IsthereSAE == "1" )
+saemissedastep$studylabel <- saemissedastep$P3
+sae_ma_mas <- metabin(
+  experimental_arm_saes,
+  experimental_arm_n,
+  control_arm_saes,
+  control_arm_n,
+  studlab = extracted,
+  data = saemissedastep, 
+  byvar = stringentpos,
+  comb.fixed = FALSE,
+  method.tau = "PM", 
+  adhoc.hakn = "se",
+)
+summary(sae_ma_mas)
+
+#permissive analysis (inconclusive counted as neg)
+
+pfsmissedastep <- subset(missedastep, IstherePFSdata == "1" )
+
+pfs_ma_masp <- metagen(
+  lnHR,
+  PFSSE,
+  `extracted`,
+  data = pfsmissedastep,
+  sm = "HR",
+  byvar = sandpneg,
+  comb.fixed = FALSE,
+  method.tau = "PM", 
+  adhoc.hakn = "se",
+)
+summary(pfs_ma_masp)
+
+
+saemissedastep <- subset(missedastep, isthereSAEdata == "1" )
+saemissedastep$studylabel <- saemissedastep$P3
+sae_ma_masp <- metabin(
+  experimental_arm_saes,
+  experimental_arm_n,
+  control_arm_saes,
+  control_arm_n,
+  studlab = extracted,
+  data = saemissedastep, 
+  byvar = sandpneg,
+  comb.fixed = FALSE,
+  method.tau = "PM", 
+  adhoc.hakn = "se",
+)
+summary(sae_ma_masp)
+
+#forestplots 
+
+#stingentplots
+pdf(
+  "pfs_ma_mas.pdf",
+  13,
+ 34
+)
+
+forest(pfs_ma_mas,
+       sortvar = TE,
+       leftcols = c("extracted"),
+       leftlabs = c("Study"),
+       just.addcols = "left",
+       label.left = "<---Experimental arm has longer PFS---", 
+       label.right = "---Comparator has longer PFS--->", 
+       fs.lr= 10
+)
+
+dev.off()
+
+pdf(
+  "sae_ma_mas.pdf",
+  13,
+  34
+)
+
+forest(sae_ma_mas,
+       sortvar = TE,
+       leftcols = c("extracted","experimental_arm_saes", "experimental_arm_n","control_arm_saes","control_arm_n"),
+       leftlabs = c("Study", "Events","Total ", "Events", "Total"),
+       lab.e.attach.to.col = "experimental_arm_n",
+       lab.c.attach.to.col = "control_arm_n",
+       just.addcols = "left",
+       label.left = "<---Experimental arm has more SAES---", 
+       label.right = "---Comparator has more SAEs--->", 
+       fs.lr= 10
+)
+
+dev.off()
+
+#permissive plots
+#pfs
+pdf(
+  "pfs_ma_masp.pdf",
+  13,
+  34
+)
+
+
+forest(pfs_ma_masp,
+       sortvar = TE,
+       leftcols = c("extracted"),
+       leftlabs = c("Study"),
+       just.addcols = "left",
+       label.left = "<---Experimental arm has longer PFS---", 
+       label.right = "---Comparator has longer PFS--->", 
+       fs.lr= 10
+)
+
+dev.off()
+
+pdf(
+  "sae_ma_masp.pdf",
+  13,
+  34
+)
+
+forest(sae_ma_masp,
+       sortvar = TE,
+       leftcols = c("extracted","experimental_arm_saes", "experimental_arm_n","control_arm_saes","control_arm_n"),
+       leftlabs = c("Study", "Events","Total ", "Events", "Total"),
+       lab.e.attach.to.col = "EN",
+       lab.c.attach.to.col = "CN",
+       just.addcols = "left",
+       label.left = "<---Combination has fewer SAEs---", 
+       label.right = "---Comparator has fewer SAEs--->", 
+       fs.lr= 10
+)
+
+dev.off()
+
+###dose expansion vs Phase 2 positive prediction value
+P2vsDEpos <- subset(pfsmissedastep, positive == "1" )
+
+pfs_ma_masdvs2pos <- metagen(
+  lnHR,
+  P2vsDEpos$PFSSE,
+  data = P2vsDEpos,
+  sm = "HR",
+  byvar = phase2vsDE,
+  comb.fixed = FALSE,
+  method.tau = "PM", 
+  adhoc.hakn = "se",
+)
+summary(pfs_ma_masdvs2pos)
+
+saemissedastep$studylabel <- saemissedastep$P3
+sae_ma_mas2 <- metabin(
+  experimental_arm_saes,
+  experimental_arm_n,
+  control_arm_saes,
+  control_arm_n,
+  studlab = extracted,
+  data = saemissedastep, 
+  byvar = includeinp2onlypermissiveneg,
+  comb.fixed = FALSE,
+  method.tau = "PM", 
+  adhoc.hakn = "se",
+)
+summary(sae_ma_mas2)
+
+
+#permissive analysis only  include phase 2 (inconclusive counted as neg)
+pfs_ma_mas2 <- metagen(
+  lnHR,
+  pfsmissedastep$PFSSE,
+  data = pfsmissedastep,
+  sm = "HR",
+  byvar = includeinp2onlypermissiveneg,
+  comb.fixed = FALSE,
+  method.tau = "PM", 
+  adhoc.hakn = "se",
+)
+summary(pfs_ma_mas2)
+
+
+
+
+saemissedastep$studylabel <- saemissedastep$P3
+sae_ma_mas2 <- metabin(
+  experimental_arm_saes,
+  experimental_arm_n,
+  control_arm_saes,
+  control_arm_n,
+  studlab = extracted,
+  data = saemissedastep, 
+  byvar = includeinp2onlypermissiveneg,
+  comb.fixed = FALSE,
+  method.tau = "PM", 
+  adhoc.hakn = "se",
+)
+summary(sae_ma_mas2)
+
